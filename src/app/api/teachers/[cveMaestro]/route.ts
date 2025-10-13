@@ -15,6 +15,7 @@ export async function GET(
         { status: 400 }
       );
     }
+    
     const cookie = req.cookies.get("Auth_SAM");
     const authToken = cookie?.value;
 
