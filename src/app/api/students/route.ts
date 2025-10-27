@@ -1,0 +1,54 @@
+import { prisma } from "@/lib/db";
+import { verify } from "jsonwebtoken";
+import { NextRequest, NextResponse } from "next/server";
+
+export async function GET(req: NextRequest) {
+  try {
+    const cookie = req.cookies.get("Auth_SAM");
+    const authToken = cookie?.value;
+
+    if (!authToken) {
+      return NextResponse.json(
+        { error: "Token no proporcionado" },
+        { status: 401 }
+      );
+    }
+
+    const payload = verify(authToken, process.env.JWT_SECRET!);
+    const cveMaestro =
+      typeof payload === "object" ? payload.cveMaestro : undefined;
+    if (!cveMaestro) {
+      return NextResponse.json(
+        { error: "Token inválido o sin clave de maestro" },
+        { status: 401 }
+      );
+    }
+    const students = await prisma.students.findMany({
+      where: { cveMaestro },
+      select: {
+        idStudent: true,
+        expedient: true,
+        fullName: true,
+        semester: true,
+        idCareer: true,
+        career: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    });
+    if (!students || students.length === 0) {
+      return NextResponse.json(
+        { error: "No se encontraron alumnos" },
+        { status: 404 }
+      );
+    }
+    return NextResponse.json(students, { status: 200 });
+  } catch (error: any) {
+    return NextResponse.json(
+      { error: error.message || "Error al obtener los alumnos" },
+      { status: 500 }
+    );
+  }
+}
